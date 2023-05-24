@@ -1,0 +1,66 @@
+VERT_PHONG_MVP = """
+    #version 410
+
+    layout (location=0) in vec4 vPosition;  // Get with vetrex_attribute.append() the Vertex Array of the model
+    layout (location=1) in vec4 vColor;     // Get with vetrex_attribute.append() the Color Array of the model
+    layout (location=2) in vec4 vNormal;    // Get with vetrex_attribute.append() the Normal Array of the model
+
+    out     vec4 pos;           // (Position of the model) A vec4 output that is use as input in fragment Shader (FRAG_PHONE) in the next state of rendering pipeline
+    out     vec4 color;         // (Color of the model) A vec4 output that is use as input in fragment Shader (FRAG_PHONE) in the next state of rendering pipeline
+    out     vec3 normal;        // (Normals of the model) A vec4 output that is use as input in fragment Shader (FRAG_PHONE) in the next state of rendering pipeline
+    
+    uniform mat4 modelViewProj; // The matrix that help us to know where exactly the model exists (about the eye...)
+    uniform mat4 model;         // The matrix of the model
+
+    void main()
+    {
+        gl_Position = modelViewProj * vPosition;                // Position that apears in the screen (Where I see it in the screen)
+        pos = model * vPosition;                                // Position that apears in the world (Where I see it in the world)
+        color = vColor;                                         // Defines the color (output) with the Color Array
+        normal = mat3(transpose(inverse(model))) * vNormal.xyz; // Defines the normal (output) with the Normals Array
+    }
+"""
+FRAG_PHONG = """
+    #version 410
+
+    in vec4 pos;            // Get input from "VERT_PHONG_MVP" about the position of the model
+    in vec4 color;          // Get input from "VERT_PHONG_MVP" about the color of the model
+    in vec3 normal;         // Get input from "VERT_PHONG_MVP" about the normals of the model
+
+    out vec4 outputColor;   // Output with the color of the model
+
+    // Phong products
+    uniform vec3 ambientColor;  //
+    uniform float ambientStr;   //
+
+    // Lighting 
+    uniform vec3 viewPos;           // Uniform variable that express from what position i see the light
+    uniform vec3 lightPos;          // Uniform variable that express the position of the light
+    uniform vec3 lightColor;        // Uniform variable that express the color of the light
+    uniform float lightIntensity;   // Uniform variable that express how strong is the light
+
+    // Material
+    uniform float shininess;        // Uniform variable that express how shiny the model is
+    uniform vec3 matColor;          // Uniform variable that express the color of the model
+
+    // Create the PHONG function 
+    void main()
+    {
+        vec3 norm = normalize(normal);                  // Normalaize the normal Array
+        vec3 lightDir = normalize(lightPos - pos.xyz);  // Creates lighting direction
+        vec3 viewDir = normalize(viewPos - pos.xyz);    // Creates viewing direction
+        vec3 reflectDir = reflect(-lightDir, norm);     // Creates reflecting direction        
+
+        // Ambient
+        vec3 ambientProduct = ambientStr * ambientColor;                // Computes ambient product 
+        // Diffuse
+        float diffuseStr = max(dot(norm, lightDir), 0.0);
+        vec3 diffuseProduct = diffuseStr * lightColor;                  // Computes diffuse product 
+        // Specular
+        float specularStr = pow(max(dot(viewDir, reflectDir), 0.0), 32);
+        vec3 specularProduct = shininess * specularStr * color.xyz;     // Computes specular product 
+        
+        vec3 result = (ambientProduct + (diffuseProduct + specularProduct) * lightIntensity) * matColor;    // Computes the number that multiply with the color
+        outputColor = vec4(result, 1);                                  // return the output color
+    }
+"""
